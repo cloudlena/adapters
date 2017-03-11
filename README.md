@@ -11,6 +11,7 @@ package main
 
 import (
         "fmt"
+        "log"
         "net/http"
 
         "github.com/mastertinner/adapters"
@@ -24,8 +25,8 @@ func IndexHandler() http.Handler {
 }
 
 func main() {
-        http.Handler("/", adapters.Adapt(IndexHandler(), adapters.Logger()))
-        http.ListenAndServe(":8080", nil)
+        http.Handle("/", adapters.Adapt(IndexHandler(), adapters.Logger()))
+        log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
 
