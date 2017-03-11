@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	uuid "github.com/satori/go.uuid"
+
 	redis "gopkg.in/redis.v5"
 
 	"golang.org/x/oauth2"
