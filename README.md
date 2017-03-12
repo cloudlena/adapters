@@ -35,4 +35,4 @@ func main() {
 Currently, this package contains the following adapters:
 
 * Logger: Logs the request
-* OAuth: Checks if a request is authenticated through OAuth using [Redis](https://redis.io/) as a cache
+* OAuth: Checks if a request is authenticated through [OAuth 2](https://oauth.net/2/) using [Redis](https://redis.io/) as a cache
