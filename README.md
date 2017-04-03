@@ -15,6 +15,7 @@ import (
         "net/http"
 
         "github.com/mastertinner/adapters"
+        "github.com/mastertinner/adapters/logging"
 )
 
 // IndexHandler says what it loves
@@ -25,7 +26,8 @@ func IndexHandler() http.Handler {
 }
 
 func main() {
-        http.Handle("/", adapters.Adapt(IndexHandler(), adapters.Logger()))
+        l := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+        http.Handle("/", adapters.Adapt(IndexHandler(), logging.Handler(l)))
         log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
@@ -34,5 +36,5 @@ func main() {
 
 This package contains the following adapters:
 
-* Logger: Logs the request
-* OAuth: Checks if a request is authenticated through [OAuth 2](https://oauth.net/2/) using [Redis](https://redis.io/) as a cache
+* Logging: Logs the request and the time it took to serve it
+* OAuth2: Checks if a request is authenticated through [OAuth 2](https://oauth.net/2/) using [Redis](https://redis.io/) as a cache
