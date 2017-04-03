@@ -26,8 +26,8 @@ func IndexHandler() http.Handler {
 }
 
 func main() {
-        l := log.New(os.Stdout, "", log.Ldate|log.Ltime)
-        http.Handle("/", adapters.Adapt(IndexHandler(), logging.Handler(l)))
+        logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
+        http.Handle("/", adapters.Adapt(IndexHandler(), logging.Handler(logger)))
         log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
