@@ -18,11 +18,10 @@ import (
 )
 
 const cookieName = "sess_cookie"
-const tokenName = "access-token"
 const tokenExpiration = 4 * 24 * time.Hour
 
 // Handler checks if a request is authenticated through OAuth2
-func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string) adapters.Adapter {
+func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string, tokenName string) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var sessionCookie *http.Cookie
