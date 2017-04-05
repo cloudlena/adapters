@@ -1,12 +1,12 @@
-hash: 91d6244df3a672d900e9603375f5f44f795e9c6f8b640f808efef1fc9113abd2
-updated: 2017-04-03T15:43:20.571367042+02:00
+hash: 2930195423c156b85ae0be9ef95d0dfcaa988b54bba4f088f767f05b3a108912
+updated: 2017-04-05T23:56:06.291793358+02:00
 imports:
 - name: github.com/golang/protobuf
   version: 69b215d01a5606c843240eab4937eab3acee6530
   subpackages:
   - proto
-- name: github.com/gorilla/context
-  version: 1ea25387ff6f684839d82767c1733ff4d4d15d0a
+- name: github.com/mastertinner/adapters
+  version: 097aae034644e25eb7eebf7c34b286a9928eb3a2
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: golang.org/x/net
