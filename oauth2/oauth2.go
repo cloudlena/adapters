@@ -1,6 +1,7 @@
 package oauth2
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -10,7 +11,6 @@ import (
 
 	"gopkg.in/redis.v5"
 
-	"github.com/gorilla/context"
 	"github.com/mastertinner/adapters"
 	"github.com/satori/go.uuid"
 
@@ -21,7 +21,7 @@ const cookieName = "sess_cookie"
 const tokenExpiration = 4 * 24 * time.Hour
 
 // Handler checks if a request is authenticated through OAuth2
-func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string, tokenName string) adapters.Adapter {
+func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var sessionCookie *http.Cookie
@@ -47,9 +47,10 @@ func Handler(redisClient *redis.Client, config *oauth2.Config, stateString strin
 				return
 			}
 
-			context.Set(r, tokenName, cachedToken.AccessToken)
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, tokenContextKey, cachedToken.AccessToken)
 
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
