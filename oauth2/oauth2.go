@@ -49,8 +49,9 @@ func Handler(redisClient *redis.Client, config *oauth2.Config, stateString strin
 
 			ctx := r.Context()
 			ctx = context.WithValue(ctx, tokenContextKey, cachedToken.AccessToken)
+			r = r.WithContext(ctx)
 
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
