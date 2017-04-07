@@ -17,8 +17,10 @@ import (
 	"golang.org/x/oauth2"
 )
 
-const cookieName = "sess_cookie"
-const tokenExpiration = 4 * 24 * time.Hour
+const (
+	cookieName      = "sess_cookie"
+	tokenExpiration = 4 * 24 * time.Hour
+)
 
 // Handler checks if a request is authenticated through OAuth2
 func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
