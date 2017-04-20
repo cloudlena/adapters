@@ -1,12 +1,12 @@
 hash: 2930195423c156b85ae0be9ef95d0dfcaa988b54bba4f088f767f05b3a108912
-updated: 2017-04-05T23:56:06.291793358+02:00
+updated: 2017-04-20T12:34:59.389018193+02:00
 imports:
 - name: github.com/golang/protobuf
   version: 69b215d01a5606c843240eab4937eab3acee6530
   subpackages:
   - proto
 - name: github.com/mastertinner/adapters
-  version: 097aae034644e25eb7eebf7c34b286a9928eb3a2
+  version: 402cb2e8d9ff63dad093f386fc85ef2a36c42bfc
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: golang.org/x/net
