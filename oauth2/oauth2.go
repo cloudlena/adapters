@@ -23,16 +23,16 @@ const (
 )
 
 // Handler checks if a request is authenticated through OAuth2
-func Handler(redisClient *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
+func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var sessionCookie *http.Cookie
 			cookies := r.Cookies()
 
 			// Get session cookie from cookies
-			for _, cookie := range cookies {
-				if strings.EqualFold(cookie.Name, cookieName) {
-					sessionCookie = cookie
+			for _, c := range cookies {
+				if strings.EqualFold(c.Name, cookieName) {
+					sessionCookie = c
 					break
 				}
 			}
@@ -42,15 +42,15 @@ func Handler(redisClient *redis.Client, config *oauth2.Config, stateString strin
 				return
 			}
 
-			cachedToken, err := tokenFromCache(redisClient, sessionCookie.Value)
-			if err != nil || cachedToken == nil || !cachedToken.Valid() {
+			token, err := tokenFromCache(cache, sessionCookie.Value)
+			if err != nil || token == nil || !token.Valid() {
 				url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 				http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 				return
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, tokenContextKey, cachedToken.AccessToken)
+			ctx = context.WithValue(ctx, tokenContextKey, token)
 			r = r.WithContext(ctx)
 
 			next.ServeHTTP(w, r)
@@ -59,9 +59,14 @@ func Handler(redisClient *redis.Client, config *oauth2.Config, stateString strin
 }
 
 // CallbackHandler creates a token and saves it to the cache
-func CallbackHandler(redisClient *redis.Client, config *oauth2.Config, stateString string) http.Handler {
+func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.ParseForm()
+		err := r.ParseForm()
+		if err != nil {
+			code := http.StatusInternalServerError
+			http.Error(w, http.StatusText(code), code)
+			return
+		}
 
 		state := r.FormValue("state")
 		if state != stateString {
@@ -71,7 +76,7 @@ func CallbackHandler(redisClient *redis.Client, config *oauth2.Config, stateStri
 		}
 
 		code := r.FormValue("code")
-		token, err := config.Exchange(oauth2.NoContext, code)
+		token, err := config.Exchange(context.Background(), code)
 		if err != nil {
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
@@ -93,17 +98,16 @@ func CallbackHandler(redisClient *redis.Client, config *oauth2.Config, stateStri
 
 		// Serialize token and insert to cache
 		srlzdToken, err := json.Marshal(&token)
-
-		err = redisClient.Set(cookieVal, srlzdToken, 0).Err()
 		if err != nil {
-			log.Printf("error adding token to cache: %v", err)
+			log.Println("error marshalling token:", err.Error())
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
 		}
-		err = redisClient.Expire(cookieVal, tokenExpiration).Err()
+
+		err = cache.Set(cookieVal, srlzdToken, tokenExpiration).Err()
 		if err != nil {
-			log.Printf("error setting expiration of token in cache: %v", err)
+			log.Println("error adding token to cache:", err.Error())
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
@@ -114,16 +118,15 @@ func CallbackHandler(redisClient *redis.Client, config *oauth2.Config, stateStri
 }
 
 // tokenFromCache retrieves a tokenURL from the cache
-func tokenFromCache(redisClient *redis.Client, cookieUUID string) (*oauth2.Token, error) {
-	serializedToken, err := redisClient.Get(cookieUUID).Result()
+func tokenFromCache(cache *redis.Client, cookieID string) (*oauth2.Token, error) {
+	serializedToken, err := cache.Get(cookieID).Result()
 	if err != nil {
 		return nil, errors.New("error finding token in cache")
 	}
 
 	var token *oauth2.Token
 	err = json.Unmarshal([]byte(serializedToken), &token)
-
-	if token == nil {
+	if err != nil || token == nil {
 		return nil, errors.New("error unmarshalling token")
 	}
 
