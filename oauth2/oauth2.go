@@ -22,14 +22,14 @@ const (
 	tokenExpiration = 4 * 24 * time.Hour
 )
 
-// TokenWithScope is an OAuth2 token with its scope
-type TokenWithScope struct {
-	*oauth2.Token
+// tokenWithScope is an OAuth2 token with its scope
+type tokenWithScope struct {
+	Token *oauth2.Token
 	Scope string
 }
 
 // Handler checks if a request is authenticated through OAuth2
-func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
+func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}, scopeContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var sessionCookie *http.Cookie
@@ -49,14 +49,15 @@ func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tok
 			}
 
 			tok, err := tokenFromCache(cache, sessionCookie.Value)
-			if err != nil || tok == nil || !tok.Valid() {
+			if err != nil || tok.Token == nil || !tok.Token.Valid() {
 				url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 				http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 				return
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, tokenContextKey, tok)
+			ctx = context.WithValue(ctx, tokenContextKey, tok.Token)
+			ctx = context.WithValue(ctx, scopeContextKey, tok.Scope)
 			r = r.WithContext(ctx)
 
 			next.ServeHTTP(w, r)
@@ -90,9 +91,9 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 		}
 
 		// Add scope to token info
-		tok := &TokenWithScope{
-			t,
-			t.Extra("scope").(string),
+		tok := &tokenWithScope{
+			Token: t,
+			Scope: t.Extra("scope").(string),
 		}
 
 		cookieVal := uuid.NewV4().String()
@@ -130,13 +131,13 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 }
 
 // tokenFromCache retrieves a tokenURL from the cache
-func tokenFromCache(cache *redis.Client, cookieID string) (*TokenWithScope, error) {
+func tokenFromCache(cache *redis.Client, cookieID string) (*tokenWithScope, error) {
 	serializedToken, err := cache.Get(cookieID).Result()
 	if err != nil {
 		return nil, errors.New("error finding token in cache")
 	}
 
-	var tok *TokenWithScope
+	var tok *tokenWithScope
 	err = json.Unmarshal([]byte(serializedToken), &tok)
 	if err != nil || tok == nil {
 		return nil, errors.New("error unmarshalling token")
