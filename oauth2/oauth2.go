@@ -22,6 +22,12 @@ const (
 	tokenExpiration = 4 * 24 * time.Hour
 )
 
+// TokenWithScope is an OAuth2 token with its scope
+type TokenWithScope struct {
+	*oauth2.Token
+	Scope string
+}
+
 // Handler checks if a request is authenticated through OAuth2
 func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
@@ -42,15 +48,15 @@ func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tok
 				return
 			}
 
-			token, err := tokenFromCache(cache, sessionCookie.Value)
-			if err != nil || token == nil || !token.Valid() {
+			tok, err := tokenFromCache(cache, sessionCookie.Value)
+			if err != nil || tok == nil || !tok.Valid() {
 				url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 				http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 				return
 			}
 
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, tokenContextKey, token)
+			ctx = context.WithValue(ctx, tokenContextKey, tok)
 			r = r.WithContext(ctx)
 
 			next.ServeHTTP(w, r)
@@ -76,11 +82,17 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 		}
 
 		code := r.FormValue("code")
-		token, err := config.Exchange(context.Background(), code)
+		t, err := config.Exchange(context.Background(), code)
 		if err != nil {
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
+		}
+
+		// Add scope to token info
+		tok := &TokenWithScope{
+			t,
+			t.Extra("scope").(string),
 		}
 
 		cookieVal := uuid.NewV4().String()
@@ -97,7 +109,7 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 		http.SetCookie(w, cookieToSend)
 
 		// Serialize token and insert to cache
-		srlzdToken, err := json.Marshal(&token)
+		srlzdToken, err := json.Marshal(&tok)
 		if err != nil {
 			log.Println("error marshalling token:", err.Error())
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
@@ -118,17 +130,17 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 }
 
 // tokenFromCache retrieves a tokenURL from the cache
-func tokenFromCache(cache *redis.Client, cookieID string) (*oauth2.Token, error) {
+func tokenFromCache(cache *redis.Client, cookieID string) (*TokenWithScope, error) {
 	serializedToken, err := cache.Get(cookieID).Result()
 	if err != nil {
 		return nil, errors.New("error finding token in cache")
 	}
 
-	var token *oauth2.Token
-	err = json.Unmarshal([]byte(serializedToken), &token)
-	if err != nil || token == nil {
+	var tok *TokenWithScope
+	err = json.Unmarshal([]byte(serializedToken), &tok)
+	if err != nil || tok == nil {
 		return nil, errors.New("error unmarshalling token")
 	}
 
-	return token, nil
+	return tok, nil
 }
