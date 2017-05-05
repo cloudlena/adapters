@@ -78,7 +78,7 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 		state := r.FormValue("state")
 		if state != stateString {
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
-			http.Redirect(w, r, url, http.StatusFound)
+			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
 		}
 
