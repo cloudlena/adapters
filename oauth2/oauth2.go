@@ -22,13 +22,13 @@ const (
 	tokenExpiration = 4 * 24 * time.Hour
 )
 
-// tokenWithScope is an OAuth2 token with its scope
+// tokenWithScope is an OAuth2 token with its scope.
 type tokenWithScope struct {
 	Token *oauth2.Token
 	Scope string
 }
 
-// Handler checks if a request is authenticated through OAuth2
+// Handler checks if a request is authenticated through OAuth2.
 func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}, scopeContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +65,7 @@ func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tok
 	}
 }
 
-// CallbackHandler creates a token and saves it to the cache
+// CallbackHandler creates a token and saves it to the cache.
 func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
@@ -130,7 +130,7 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, stateString str
 	})
 }
 
-// tokenFromCache retrieves a tokenURL from the cache
+// tokenFromCache retrieves a tokenURL from the cache.
 func tokenFromCache(cache *redis.Client, cookieID string) (*tokenWithScope, error) {
 	serializedToken, err := cache.Get(cookieID).Result()
 	if err != nil {
