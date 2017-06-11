@@ -13,6 +13,7 @@ func Handler(enabled bool) adapters.Adapter {
 			if enabled && r.TLS == nil {
 				url := "https://" + r.Host + r.URL.String()
 				http.Redirect(w, r, url, http.StatusPermanentRedirect)
+				return
 			}
 
 			next.ServeHTTP(w, r)
