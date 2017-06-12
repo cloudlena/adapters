@@ -10,7 +10,8 @@ import (
 func Handler(enabled bool) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if enabled && r.TLS == nil {
+			notSecure := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
+			if enabled && notSecure {
 				url := "https://" + r.Host + r.URL.String()
 				http.Redirect(w, r, url, http.StatusPermanentRedirect)
 				return
