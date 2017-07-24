@@ -38,3 +38,4 @@ This package contains the following adapters:
 
 * Logging: Logs the request and the time it took to serve it
 * OAuth2: Checks if a request is authenticated through [OAuth 2](https://oauth.net/2/) using [Redis](https://redis.io/) as a cache
+* Secure: Enforces HTTPS by redirecting any HTTP requests to HTTPS
