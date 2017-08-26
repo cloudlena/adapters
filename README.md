@@ -1,5 +1,7 @@
 # Adapters
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/mastertinner/adapters)](https://goreportcard.com/report/github.com/mastertinner/adapters)
+
 Adapters is a collection of useful HTTP middleware or "Adapters". They follow the Adapter Pattern described by Mat Ryer in his blog post [Writing middleware in #golang and how Go makes it so much fun.](https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81)
 
 Adapters can be chained in any way and will be executed in the order they are specified.
