@@ -3,68 +3,40 @@ package oauth2
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"log"
+	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
-	"gopkg.in/redis.v5"
-
-	"github.com/mastertinner/adapters"
-	"github.com/satori/go.uuid"
-
+	jwt "github.com/dgrijalva/jwt-go"
 	"golang.org/x/oauth2"
 )
 
-const (
-	cookieName      = "sess_cookie"
-	tokenExpiration = 4 * 24 * time.Hour
-)
+// expirationClaimKey is the key under which the expiration will be saved in the token claims.
+const expirationClaimKey = "exp"
 
-// Handler checks if a request is authenticated through OAuth2.
-func Handler(cache *redis.Client, config *oauth2.Config, stateString string, tokenContextKey interface{}) adapters.Adapter {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			var sessionCookie *http.Cookie
-			cookies := r.Cookies()
-
-			// Get session cookie from cookies
-			for _, c := range cookies {
-				if strings.EqualFold(c.Name, cookieName) {
-					sessionCookie = c
-					break
-				}
-			}
-			if sessionCookie == nil {
-				url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
-				http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-				return
-			}
-
-			tok, err := tokenFromCache(cache, sessionCookie.Value)
-			if err != nil || tok == nil || !tok.Valid() {
-				url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
-				http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-				return
-			}
-
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, tokenContextKey, tok)
-			r = r.WithContext(ctx)
-
-			next.ServeHTTP(w, r)
-		})
-	}
+// TokenResponse is what the client will get upon successful login.
+type TokenResponse struct {
+	TokenType   string `json:"tokenType"`
+	AccessToken string `json:"accessToken"`
+	ExpiresIn   int    `json:"expiresIn"`
 }
 
-// CallbackHandler creates a token and saves it to the cache.
-func CallbackHandler(cache *redis.Client, config *oauth2.Config, redirectURL string, stateString string) http.Handler {
+// LoginHandler triggers the respective login flow for the user.
+func LoginHandler(config *oauth2.Config, stateString string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	})
+}
+
+// CallbackHandler creates a session token and returns it to the client.
+// It is designed to handle the OAuth2 callback endpoint.
+func CallbackHandler(config *oauth2.Config, sessionSecret string, stateString string, tokenTTL time.Duration, createPrivateClaims func(string) (jwt.MapClaims, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
-			code := http.StatusInternalServerError
-			http.Error(w, http.StatusText(code), code)
+			status := http.StatusBadRequest
+			http.Error(w, http.StatusText(status), status)
 			return
 		}
 
@@ -83,52 +55,45 @@ func CallbackHandler(cache *redis.Client, config *oauth2.Config, redirectURL str
 			return
 		}
 
-		cookieVal := uuid.NewV4().String()
-
-		// Setup the cookie and set it
-		cookieToSend := &http.Cookie{
-			Name:     cookieName,
-			Value:    cookieVal,
-			MaxAge:   0,
-			Secure:   false,
-			HttpOnly: false,
-		}
-
-		http.SetCookie(w, cookieToSend)
-
-		// Serialize token and insert to cache
-		srlzdToken, err := json.Marshal(&tok)
+		claims, err := createPrivateClaims(tok.AccessToken)
 		if err != nil {
-			log.Println("error marshalling token:", err.Error())
+			fmt.Println("error creating private claims:", err)
 			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
 		}
 
-		err = cache.Set(cookieVal, srlzdToken, tokenExpiration).Err()
-		if err != nil {
-			log.Println("error adding token to cache:", err.Error())
-			url := config.AuthCodeURL(stateString, oauth2.AccessTypeOnline)
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-			return
-		}
-
-		http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
+		issueSession(w, claims, tokenTTL, sessionSecret)
 	})
 }
 
-// tokenFromCache retrieves a tokenURL from the cache.
-func tokenFromCache(cache *redis.Client, cookieID string) (*oauth2.Token, error) {
-	serializedToken, err := cache.Get(cookieID).Result()
+// issueSession creates a JWT and returns it to the client.
+func issueSession(w http.ResponseWriter, claims jwt.MapClaims, tokenTTL time.Duration, sessionSecret string) {
+	exp := time.Now().Add(tokenTTL)
+	claims[expirationClaimKey] = exp.Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signedTok, err := token.SignedString([]byte(sessionSecret))
 	if err != nil {
-		return nil, errors.New("error finding token in cache")
+		fmt.Println("error signing token:", err)
+		status := http.StatusInternalServerError
+		http.Error(w, http.StatusText(status), status)
+		return
 	}
 
-	var tok *oauth2.Token
-	err = json.Unmarshal([]byte(serializedToken), &tok)
-	if err != nil || tok == nil {
-		return nil, errors.New("error unmarshalling token")
+	resp := TokenResponse{
+		TokenType:   "bearer",
+		AccessToken: signedTok,
+		ExpiresIn:   int(tokenTTL.Seconds()),
 	}
 
-	return tok, nil
+	w.Header().Set("Content-Type", "application/json; encoding=utf-8")
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		fmt.Println("error encoding response JSON:", err)
+		status := http.StatusInternalServerError
+		http.Error(w, http.StatusText(status), status)
+	}
 }
