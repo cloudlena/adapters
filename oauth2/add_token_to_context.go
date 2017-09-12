@@ -10,9 +10,9 @@ import (
 	"github.com/mastertinner/adapters"
 )
 
-// AddTokenToContext checks if a request is authenticated through OAuth2 and JWT.
+// ProtectAndAddTokenToCtx checks if a request is authenticated through OAuth2 and JWT.
 // If it is, it will add the token to the request's context.
-func AddTokenToContext(sessionSecret string, tokenContextKey interface{}) adapters.Adapter {
+func ProtectAndAddTokenToCtx(sessionSecret string, tokenContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
