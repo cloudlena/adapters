@@ -21,6 +21,9 @@ type TokenResponse struct {
 	ExpiresIn   int    `json:"expiresIn"`
 }
 
+// CreatePrivateClaimsFunc is a function to create private claims out of an access token string.
+type CreatePrivateClaimsFunc func(string) (jwt.MapClaims, error)
+
 // LoginHandler triggers the respective login flow for the user.
 func LoginHandler(config *oauth2.Config, stateString string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +34,7 @@ func LoginHandler(config *oauth2.Config, stateString string) http.Handler {
 
 // CallbackHandler creates a session token and returns it to the client.
 // It is designed to handle the OAuth2 callback endpoint.
-func CallbackHandler(config *oauth2.Config, sessionSecret string, stateString string, tokenTTL time.Duration, createPrivateClaims func(string) (jwt.MapClaims, error)) http.Handler {
+func CallbackHandler(config *oauth2.Config, sessionSecret string, stateString string, tokenTTL time.Duration, createPrivateClaims CreatePrivateClaimsFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
