@@ -23,7 +23,7 @@ func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, createPri
 		claims, err := createPrivateClaims(tokenString)
 		if err != nil {
 			fmt.Println("error creating private claims:", err)
-			status := http.StatusInternalServerError
+			status := http.StatusUnauthorized
 			http.Error(w, http.StatusText(status), status)
 			return
 		}
