@@ -8,8 +8,11 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-// IDTokenLoginHandler allows to log in directly with an existing ID Token from an IDP.
-func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, createPrivateClaims func(string) (jwt.MapClaims, error)) http.Handler {
+// ParseTokenStringFunc is a function to verify an external token string and create private claims for the internal token from it.
+type ParseTokenStringFunc func(string) (jwt.MapClaims, error)
+
+// IDTokenLoginHandler allows to log in directly with an existing ID token string from an IDP.
+func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, parseTok ParseTokenStringFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
@@ -18,9 +21,9 @@ func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, createPri
 			return
 		}
 
-		tokenString := r.FormValue("id_token")
+		tok := r.FormValue("id_token")
 
-		claims, err := createPrivateClaims(tokenString)
+		claims, err := parseTok(tok)
 		if err != nil {
 			fmt.Println("error creating private claims:", err)
 			status := http.StatusUnauthorized
