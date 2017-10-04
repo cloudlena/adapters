@@ -25,7 +25,7 @@ func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, parseTok 
 
 		claims, err := parseTok(tok)
 		if err != nil {
-			fmt.Println("error creating private claims:", err)
+			fmt.Println("error parsing ID token:", err)
 			status := http.StatusUnauthorized
 			http.Error(w, http.StatusText(status), status)
 			return

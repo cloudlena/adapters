@@ -49,7 +49,7 @@ func CallbackHandler(config *oa2.Config, sessionSecret string, stateString strin
 
 		claims, err := parseTok(tok)
 		if err != nil {
-			fmt.Println("error creating private claims:", err)
+			fmt.Println("error parsing token:", err)
 			url := config.AuthCodeURL(stateString)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
