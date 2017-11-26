@@ -31,6 +31,6 @@ func IDTokenLoginHandler(sessionSecret string, tokenTTL time.Duration, parseTok 
 			return
 		}
 
-		issueSession(w, claims, tokenTTL, sessionSecret)
+		issueSession(w, r, claims, tokenTTL, sessionSecret, "")
 	})
 }

@@ -20,7 +20,7 @@ type TokenResponse struct {
 }
 
 // issueSession creates a JWT and returns it to the client.
-func issueSession(w http.ResponseWriter, claims jwt.MapClaims, tokenTTL time.Duration, sessionSecret string) {
+func issueSession(w http.ResponseWriter, r *http.Request, claims jwt.MapClaims, tokenTTL time.Duration, sessionSecret string, redirectURI string) {
 	exp := time.Now().Add(tokenTTL)
 	claims[expirationClaimKey] = exp.Unix()
 
@@ -40,12 +40,16 @@ func issueSession(w http.ResponseWriter, claims jwt.MapClaims, tokenTTL time.Dur
 		ExpiresIn:   int(tokenTTL.Seconds()),
 	}
 
-	w.Header().Set("Content-Type", "application/json; encoding=utf-8")
+	if redirectURI != "" {
+		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s", redirectURI, signedTok), http.StatusTemporaryRedirect)
+	} else {
+		w.Header().Set("Content-Type", "application/json; encoding=utf-8")
 
-	err = json.NewEncoder(w).Encode(resp)
-	if err != nil {
-		fmt.Println("error encoding response JSON:", err)
-		status := http.StatusInternalServerError
-		http.Error(w, http.StatusText(status), status)
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			fmt.Println("error encoding response JSON:", err)
+			status := http.StatusInternalServerError
+			http.Error(w, http.StatusText(status), status)
+		}
 	}
 }
