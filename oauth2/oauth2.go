@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -14,16 +15,7 @@ import (
 type ParseTokenFunc func(*oa2.Token) (jwt.MapClaims, error)
 
 // LoginHandler triggers the respective login flow for the user.
-func LoginHandler(config *oa2.Config, stateString string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		url := config.AuthCodeURL(stateString)
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
-	})
-}
-
-// CallbackHandler creates a session token and returns it to the client.
-// It is designed to handle the OAuth2 callback endpoint.
-func CallbackHandler(config *oa2.Config, sessionSecret string, stateString string, tokenTTL time.Duration, redirectURI string, parseTok ParseTokenFunc) http.Handler {
+func LoginHandler(config *oa2.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
@@ -32,17 +24,34 @@ func CallbackHandler(config *oa2.Config, sessionSecret string, stateString strin
 			return
 		}
 
-		state := r.FormValue("state")
-		if state != stateString {
-			url := config.AuthCodeURL(stateString)
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+		redirectURI := url.QueryEscape(r.FormValue("redirect_uri"))
+		url := config.AuthCodeURL(redirectURI)
+		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+	})
+}
+
+// CallbackHandler creates a session token and returns it to the client.
+// It is designed to handle the OAuth2 callback endpoint.
+func CallbackHandler(config *oa2.Config, sessionSecret string, tokenTTL time.Duration, parseTok ParseTokenFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseForm()
+		if err != nil {
+			status := http.StatusBadRequest
+			http.Error(w, http.StatusText(status), status)
+			return
+		}
+
+		redirectURI, err := url.QueryUnescape(r.FormValue("state"))
+		if err != nil {
+			status := http.StatusBadRequest
+			http.Error(w, http.StatusText(status), status)
 			return
 		}
 
 		code := r.FormValue("code")
 		tok, err := config.Exchange(context.Background(), code)
 		if err != nil {
-			url := config.AuthCodeURL(stateString)
+			url := config.AuthCodeURL(redirectURI)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
 		}
@@ -50,7 +59,7 @@ func CallbackHandler(config *oa2.Config, sessionSecret string, stateString strin
 		claims, err := parseTok(tok)
 		if err != nil {
 			fmt.Println("error parsing token:", err)
-			url := config.AuthCodeURL(stateString)
+			url := config.AuthCodeURL(redirectURI)
 			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 			return
 		}
