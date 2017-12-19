@@ -10,9 +10,9 @@ import (
 	"github.com/mastertinner/adapters"
 )
 
-// ProtectAndAddTokenToCtx checks if a request is authenticated through OAuth2 and JWT.
+// CheckToken checks if a request is authenticated through OAuth2 and JWT.
 // If it is, it will add the token to the request's context.
-func ProtectAndAddTokenToCtx(sessionSecret string, tokenContextKey interface{}) adapters.Adapter {
+func CheckToken(sessionSecret string, tokenContextKey interface{}) adapters.Adapter {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
@@ -20,8 +20,7 @@ func ProtectAndAddTokenToCtx(sessionSecret string, tokenContextKey interface{}) 
 
 			token, err := jwt.Parse(tokenString, func(tok *jwt.Token) (interface{}, error) {
 				if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
-					err := fmt.Errorf("Unexpected signing method: %v", tok.Header["alg"])
-					return nil, err
+					return nil, fmt.Errorf("Unexpected signing method: %v", tok.Header["alg"])
 				}
 				return []byte(sessionSecret), nil
 			})
