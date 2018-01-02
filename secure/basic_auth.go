@@ -3,12 +3,10 @@ package secure
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/mastertinner/adapters"
 )
 
 // BasicAuth enforces basic authenthication.
-func BasicAuth(username string, password string, realm string) adapters.Adapter {
+func BasicAuth(username string, password string, realm string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, pass, ok := r.BasicAuth()

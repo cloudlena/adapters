@@ -2,12 +2,10 @@ package secure
 
 import (
 	"net/http"
-
-	"github.com/mastertinner/adapters"
 )
 
 // ForceHTTPS redirects any HTTP request to HTTPS.
-func ForceHTTPS(enabled bool) adapters.Adapter {
+func ForceHTTPS(enabled bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			notSecure := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
