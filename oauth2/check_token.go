@@ -7,12 +7,11 @@ import (
 	"strings"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/mastertinner/adapters"
 )
 
 // CheckToken checks if a request is authenticated through OAuth2 and JWT.
 // If it is, it will add the token to the request's context.
-func CheckToken(sessionSecret string, tokenContextKey interface{}) adapters.Adapter {
+func CheckToken(sessionSecret string, tokenContextKey interface{}) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")

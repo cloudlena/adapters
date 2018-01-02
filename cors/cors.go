@@ -3,8 +3,6 @@ package cors
 import (
 	"net/http"
 	"strings"
-
-	"github.com/mastertinner/adapters"
 )
 
 // Options configure a CORS handler.
@@ -15,7 +13,7 @@ type Options struct {
 }
 
 // Handler logs HTTP requests.
-func Handler(o Options) adapters.Adapter {
+func Handler(o Options) func(http.Handler) http.Handler {
 	if o.Origins == "" {
 		o.Origins = "*"
 	}
