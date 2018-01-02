@@ -16,21 +16,22 @@ type Options struct {
 
 // Handler logs HTTP requests.
 func Handler(o Options) adapters.Adapter {
+	if o.Origins == "" {
+		o.Origins = "*"
+	}
+	if o.Methods == "" {
+		o.Methods = strings.Join([]string{
+			http.MethodPost,
+			http.MethodGet,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodDelete,
+			http.MethodHead,
+		}, ", ")
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if o.Origins == "" {
-				o.Origins = "*"
-			}
-			if o.Methods == "" {
-				o.Methods = strings.Join([]string{
-					http.MethodPost,
-					http.MethodGet,
-					http.MethodPut,
-					http.MethodPatch,
-					http.MethodDelete,
-					http.MethodHead,
-				}, ", ")
-			}
 			if o.Headers == "" {
 				o.Headers = r.Header.Get("Access-Control-Request-Headers")
 			}
