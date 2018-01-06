@@ -12,7 +12,7 @@ type Options struct {
 	Headers string
 }
 
-// Handler logs HTTP requests.
+// Handler adds CORS headers to the response.
 func Handler(o Options) func(http.Handler) http.Handler {
 	if o.Origins == "" {
 		o.Origins = "*"
