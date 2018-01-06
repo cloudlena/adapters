@@ -1,11 +1,11 @@
-package secure
+package enforcehttps
 
 import (
 	"net/http"
 )
 
-// ForceHTTPS redirects any HTTP request to HTTPS.
-func ForceHTTPS(enabled bool) func(http.Handler) http.Handler {
+// Handler redirects any HTTP request to HTTPS.
+func Handler(enabled bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			notSecure := r.TLS == nil && r.Header.Get("X-Forwarded-Proto") != "https"
