@@ -9,7 +9,11 @@ import (
 )
 
 // TokenLoginHandler logs a user who already has an access token in.
-func TokenLoginHandler(config *oa2.Config, sessionSecret string, tokenTTL time.Duration, parseTok ParseTokenFunc) http.Handler {
+func TokenLoginHandler(
+	sessionSecret string,
+	tokenTTL time.Duration,
+	parseTok ParseTokenFunc,
+) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {

@@ -9,7 +9,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-// expirationClaimKey is the key under which the expiration will be saved in the token claims.
+// expirationClaimKey is the key under which the expiration will be saved.
 const expirationClaimKey = "exp"
 
 // TokenResponse is what the client will get upon successful login.
@@ -20,7 +20,14 @@ type TokenResponse struct {
 }
 
 // issueSession creates a JWT and returns it to the client.
-func issueSession(w http.ResponseWriter, r *http.Request, claims jwt.MapClaims, tokenTTL time.Duration, sessionSecret string, redirectURI string) {
+func issueSession(
+	w http.ResponseWriter,
+	r *http.Request,
+	claims jwt.MapClaims,
+	tokenTTL time.Duration,
+	sessionSecret string,
+	redirectURI string,
+) {
 	exp := time.Now().Add(tokenTTL)
 	claims[expirationClaimKey] = exp.Unix()
 
@@ -41,7 +48,8 @@ func issueSession(w http.ResponseWriter, r *http.Request, claims jwt.MapClaims, 
 	}
 
 	if redirectURI != "" {
-		http.Redirect(w, r, fmt.Sprintf("%s?access_token=%s", redirectURI, signedTok), http.StatusTemporaryRedirect)
+		uri := fmt.Sprintf("%s?access_token=%s", redirectURI, signedTok)
+		http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 	} else {
 		w.Header().Set("Content-Type", "application/json; encoding=utf-8")
 
