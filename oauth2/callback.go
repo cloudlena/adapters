@@ -12,7 +12,12 @@ import (
 
 // CallbackHandler creates a session token and returns it to the client.
 // It is designed to handle the OAuth2 callback endpoint.
-func CallbackHandler(config *oa2.Config, sessionSecret string, tokenTTL time.Duration, parseTok ParseTokenFunc) http.Handler {
+func CallbackHandler(
+	config *oa2.Config,
+	sessionSecret string,
+	tokenTTL time.Duration,
+	parseTok ParseTokenFunc,
+) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
