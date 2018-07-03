@@ -25,7 +25,7 @@ func issueSession(
 	r *http.Request,
 	claims jwt.MapClaims,
 	tokenTTL time.Duration,
-	sessionSecret string,
+	sessionSecret,
 	redirectURI string,
 ) {
 	exp := time.Now().Add(tokenTTL)
