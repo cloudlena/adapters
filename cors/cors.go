@@ -7,38 +7,51 @@ import (
 
 // Options configure a CORS handler.
 type Options struct {
-	Origins string
-	Methods string
-	Headers string
+	Origins []string
+	Methods []string
+	Headers []string
 }
 
 // Handler adds CORS headers to the response.
 func Handler(o Options) func(http.Handler) http.Handler {
-	if o.Origins == "" {
-		o.Origins = "*"
+	if o.Origins == nil {
+		o.Origins = []string{"*"}
 	}
-	if o.Methods == "" {
-		o.Methods = strings.Join([]string{
-			http.MethodPost,
+	if o.Methods == nil {
+		o.Methods = []string{
 			http.MethodGet,
 			http.MethodPut,
 			http.MethodPatch,
+			http.MethodPost,
 			http.MethodDelete,
 			http.MethodHead,
-		}, ", ")
+		}
+	}
+	if o.Headers == nil {
+		o.Headers = []string{
+			"Content-Type",
+			"Authorization",
+		}
 	}
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if o.Headers == "" {
-				o.Headers = r.Header.Get("Access-Control-Request-Headers")
+			if len(o.Headers) == 0 {
+				reqHeaders := r.Header.Get("Access-Control-Request-Headers")
+				if reqHeaders != "" {
+					o.Headers = append(o.Headers, reqHeaders)
+				}
 			}
 
 			if r.Header.Get("Origin") != "" {
-				w.Header().Set("Access-Control-Allow-Origin", o.Origins)
-				w.Header().Set("Access-Control-Allow-Methods", o.Methods)
-				if o.Headers != "" {
-					w.Header().Set("Access-Control-Allow-Headers", o.Headers)
+				if len(o.Origins) != 0 {
+					w.Header().Set("Access-Control-Allow-Origin", strings.Join(o.Origins, ", "))
+				}
+				if len(o.Methods) != 0 {
+					w.Header().Set("Access-Control-Allow-Methods", strings.Join(o.Methods, ", "))
+				}
+				if len(o.Headers) != 0 {
+					w.Header().Set("Access-Control-Allow-Headers", strings.Join(o.Headers, ", "))
 				}
 			}
 
