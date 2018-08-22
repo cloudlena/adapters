@@ -18,7 +18,7 @@ func LoginHandler(config *oa2.Config) http.Handler {
 		}
 
 		redirectURI := url.QueryEscape(r.FormValue("redirect_uri"))
-		url := config.AuthCodeURL(redirectURI)
-		http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+		uri := config.AuthCodeURL(redirectURI)
+		http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 	})
 }

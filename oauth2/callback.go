@@ -36,16 +36,16 @@ func CallbackHandler(
 		code := r.FormValue("code")
 		tok, err := config.Exchange(context.Background(), code)
 		if err != nil {
-			url := config.AuthCodeURL(redirectURI)
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+			uri := config.AuthCodeURL(redirectURI)
+			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 			return
 		}
 
 		claims, err := parseTok(tok)
 		if err != nil {
 			fmt.Println("error parsing token:", err)
-			url := config.AuthCodeURL(redirectURI)
-			http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+			uri := config.AuthCodeURL(redirectURI)
+			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 			return
 		}
 
