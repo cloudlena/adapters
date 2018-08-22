@@ -1,9 +1,9 @@
 # Adapters
 
+[![Release](https://img.shields.io/github/release/mastertinner/clong.svg)](https://github.com/mastertinner/clong/releases/latest)
 [![GoDoc](https://godoc.org/github.com/golang/gddo?status.svg)](http://godoc.org/github.com/mastertinner/adapters)
+[![Build Status](https://travis-ci.org/mastertinner/clong.svg?branch=master)](https://travis-ci.org/mastertinner/clong)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mastertinner/adapters)](https://goreportcard.com/report/github.com/mastertinner/adapters)
-[![Build Status](https://travis-ci.org/mastertinner/clong.svg?branch=master&style=flat-square)](https://travis-ci.org/mastertinner/clong)
-[![Release](https://img.shields.io/github/release/mastertinner/clong.svg?style=flat-square)](https://github.com/mastertinner/clong/releases/latest)
 
 Adapters is a collection of useful HTTP middleware or "Adapters". They follow the Adapter Pattern described by Mat Ryer in his blog post [Writing middleware in #golang and how Go makes it so much fun.](https://medium.com/@matryer/writing-middleware-in-golang-and-how-go-makes-it-so-much-fun-4375c1246e81)
 

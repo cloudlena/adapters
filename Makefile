@@ -1,5 +1,9 @@
-.PHONY: lint
+.PHONY: all lint test
+
+all: lint test
 
 lint:
-	golangci-lint run --enable-all
-	gocritic check-project .
+	golangci-lint run
+
+test:
+	go test -race -cover ./...

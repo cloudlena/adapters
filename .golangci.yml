@@ -1,0 +1,10 @@
+linters:
+  enable-all: true
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  maligned:
+    suggest-new: true
+  misspell:
+    locale: US
