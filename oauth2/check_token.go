@@ -24,7 +24,7 @@ func CheckTokenHandler(
 				tokenString,
 				func(tok *jwt.Token) (interface{}, error) {
 					if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
-						return nil, fmt.Errorf("Unexpected signing method: %v", tok.Header["alg"])
+						return nil, fmt.Errorf("unexpected signing method: %v", tok.Header["alg"])
 					}
 					return []byte(sessionSecret), nil
 				},
