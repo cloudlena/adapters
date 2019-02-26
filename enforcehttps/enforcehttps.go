@@ -1,8 +1,6 @@
 package enforcehttps
 
-import (
-	"net/http"
-)
+import "net/http"
 
 // Handler redirects any HTTP request to HTTPS.
 func Handler(enabled bool) func(http.Handler) http.Handler {
