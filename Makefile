@@ -1,12 +1,10 @@
-.PHONY: all lint test
-
-.EXPORT_ALL_VARIABLES:
-GO111MODULE = on
-
+.PHONY: all
 all: lint test
 
+.PHONY: lint
 lint:
 	golangci-lint run
 
+.PHONY: test
 test:
 	go test -race -cover ./...

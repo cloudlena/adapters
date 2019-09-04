@@ -17,6 +17,7 @@ func Handler(o Options) func(http.Handler) http.Handler {
 	if o.Origins == nil {
 		o.Origins = []string{"*"}
 	}
+
 	if o.Methods == nil {
 		o.Methods = []string{
 			http.MethodGet,
@@ -27,6 +28,7 @@ func Handler(o Options) func(http.Handler) http.Handler {
 			http.MethodHead,
 		}
 	}
+
 	if o.Headers == nil {
 		o.Headers = []string{
 			"Content-Type",
