@@ -36,8 +36,10 @@ func issueSession(
 	signedTok, err := token.SignedString([]byte(sessionSecret))
 	if err != nil {
 		fmt.Println("error signing token:", err)
+
 		status := http.StatusInternalServerError
 		http.Error(w, http.StatusText(status), status)
+
 		return
 	}
 
