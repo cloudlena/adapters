@@ -2,7 +2,6 @@ package oauth2
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -24,7 +23,7 @@ func CheckTokenHandler(
 				tokenString,
 				func(tok *jwt.Token) (interface{}, error) {
 					if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
-						return nil, fmt.Errorf("unexpected signing method: %v", tok.Header["alg"])
+						return nil, errUnexpectedSigning
 					}
 					return []byte(sessionSecret), nil
 				},
