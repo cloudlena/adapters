@@ -2,7 +2,7 @@ package oauth2
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -43,7 +43,7 @@ func CallbackHandler(
 
 		claims, err := parseTok(tok)
 		if err != nil {
-			fmt.Println("error parsing token:", err)
+			log.Println("error parsing token:", err)
 			uri := config.AuthCodeURL(redirectURI)
 			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 			return

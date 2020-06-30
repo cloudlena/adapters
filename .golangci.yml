@@ -1,5 +1,9 @@
 linters:
   enable-all: true
+  disable:
+    - exhaustivestruct
+    - nlreturn
+    - wsl
 
 linters-settings:
   govet:

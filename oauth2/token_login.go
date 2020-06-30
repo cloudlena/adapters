@@ -1,7 +1,7 @@
 package oauth2
 
 import (
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -27,7 +27,7 @@ func TokenLoginHandler(
 
 		claims, err := parseTok(tok)
 		if err != nil {
-			fmt.Println("error parsing token:", err)
+			log.Println("error parsing token:", err)
 			status := http.StatusUnauthorized
 			http.Error(w, http.StatusText(status), status)
 			return
