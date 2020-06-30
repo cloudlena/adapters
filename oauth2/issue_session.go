@@ -3,6 +3,7 @@ package oauth2
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -35,7 +36,7 @@ func issueSession(
 
 	signedTok, err := token.SignedString([]byte(sessionSecret))
 	if err != nil {
-		fmt.Println("error signing token:", err)
+		log.Println("error signing token:", err)
 
 		status := http.StatusInternalServerError
 		http.Error(w, http.StatusText(status), status)
@@ -57,7 +58,7 @@ func issueSession(
 
 		err = json.NewEncoder(w).Encode(resp)
 		if err != nil {
-			fmt.Println("error encoding response JSON:", err)
+			log.Println("error encoding response JSON:", err)
 			status := http.StatusInternalServerError
 			http.Error(w, http.StatusText(status), status)
 		}
