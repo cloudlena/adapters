@@ -12,8 +12,8 @@ Adapters can be chained in many ways (e.g. with [Alice](https://github.com/justi
 
 This package contains the following adapters:
 
-- [Basic Auth](https://github.com/mastertinner/adapters/tree/master/basicauth): Checks for basic authentication
-- [CORS](https://github.com/mastertinner/adapters/tree/master/cors): Adds the necessary CORS headers to a response
-- [Enforce HTTPS](https://github.com/mastertinner/adapters/tree/master/enforcehttps): Redirects HTTP requests to HTTPS
-- [Logging](https://github.com/mastertinner/adapters/tree/master/logging): Logs incoming requests and the time it took to serve them
-- [OAuth 2](https://github.com/mastertinner/adapters/tree/master/oauth2): Checks for OAuth 2 authentication and issues sessions using JWTs
+- [Basic Auth](https://github.com/mastertinner/adapters/tree/main/basicauth): Checks for basic authentication
+- [CORS](https://github.com/mastertinner/adapters/tree/main/cors): Adds the necessary CORS headers to a response
+- [Enforce HTTPS](https://github.com/mastertinner/adapters/tree/main/enforcehttps): Redirects HTTP requests to HTTPS
+- [Logging](https://github.com/mastertinner/adapters/tree/main/logging): Logs incoming requests and the time it took to serve them
+- [OAuth 2](https://github.com/mastertinner/adapters/tree/main/oauth2): Checks for OAuth 2 authentication and issues sessions using JWTs

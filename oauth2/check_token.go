@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 // CheckTokenHandler checks if a request is authenticated through OAuth2.
