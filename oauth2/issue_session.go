@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 )
 
 // expirationClaimKey is the key under which the expiration will be saved.

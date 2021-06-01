@@ -1,7 +1,7 @@
 package oauth2
 
 import (
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	oa2 "golang.org/x/oauth2"
 )
 
