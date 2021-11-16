@@ -4,12 +4,11 @@ linters:
     - exhaustivestruct
     - cyclop
     - nlreturn
+    - varnamelen
     - wsl
 
 linters-settings:
   govet:
     check-shadowing: true
-  maligned:
-    suggest-new: true
   misspell:
     locale: US
