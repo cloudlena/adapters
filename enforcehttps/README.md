@@ -12,7 +12,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/mastertinner/adapters/enforcehttps"
+	"github.com/cloudlena/adapters/enforcehttps"
 )
 
 // IndexHandler says what it loves.

@@ -17,7 +17,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/mastertinner/adapters/oauth2"
+	"github.com/cloudlena/adapters/oauth2"
 	oa2 "golang.org/x/oauth2"
 	"golang.org/x/oauth2/facebook"
 )

@@ -1,9 +1,13 @@
 linters:
   enable-all: true
   disable:
-    - exhaustivestruct
     - cyclop
+    - exhaustivestruct
+    - golint
+    - interfacer
+    - maligned
     - nlreturn
+    - scopelint
     - varnamelen
     - wsl
 

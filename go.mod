@@ -1,4 +1,4 @@
-module github.com/mastertinner/adapters
+module github.com/cloudlena/adapters
 
 go 1.17
 

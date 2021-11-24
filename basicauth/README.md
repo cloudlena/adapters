@@ -12,7 +12,7 @@ import (
         "log"
         "net/http"
 
-        "github.com/mastertinner/adapters/basicauth"
+        "github.com/cloudlena/adapters/basicauth"
 )
 
 // IndexHandler says what it loves.

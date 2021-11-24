@@ -12,7 +12,7 @@ import (
         "log"
         "net/http"
 
-        "github.com/mastertinner/adapters/cors"
+        "github.com/cloudlena/adapters/cors"
 )
 
 // IndexHandler says what it loves.
