@@ -12,7 +12,7 @@ import (
 // If it is, it will add the token to the request's context.
 func CheckTokenHandler(
 	sessionSecret string,
-	tokenContextKey interface{},
+	tokenContextKey any,
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -21,7 +21,7 @@ func CheckTokenHandler(
 
 			token, err := jwt.Parse(
 				tokenString,
-				func(tok *jwt.Token) (interface{}, error) {
+				func(tok *jwt.Token) (any, error) {
 					if _, ok := tok.Method.(*jwt.SigningMethodHMAC); !ok {
 						return nil, errUnexpectedSigning
 					}
