@@ -2,14 +2,16 @@ package cors
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 )
 
 // Options configure a CORS handler.
 type Options struct {
-	Origins []string
-	Methods []string
-	Headers []string
+	Origins     []string
+	Methods     []string
+	Headers     []string
+	Credentials bool
 }
 
 // Handler adds CORS headers to the response.
@@ -55,6 +57,7 @@ func Handler(o Options) func(http.Handler) http.Handler {
 				if len(o.Headers) != 0 {
 					w.Header().Set("Access-Control-Allow-Headers", strings.Join(o.Headers, ", "))
 				}
+				w.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(o.Credentials))
 			}
 
 			if r.Method == http.MethodOptions {
