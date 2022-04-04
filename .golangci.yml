@@ -3,6 +3,7 @@ linters:
   disable:
     - cyclop
     - exhaustivestruct
+    - exhaustruct
     - golint
     - interfacer
     - maligned
