@@ -48,13 +48,13 @@ func Handler(o Options) func(http.Handler) http.Handler {
 			}
 
 			if r.Header.Get("Origin") != "" {
-				if len(o.Origins) != 0 {
+				if len(o.Origins) > 0 {
 					w.Header().Set("Access-Control-Allow-Origin", strings.Join(o.Origins, ", "))
 				}
-				if len(o.Methods) != 0 {
+				if len(o.Methods) > 0 {
 					w.Header().Set("Access-Control-Allow-Methods", strings.Join(o.Methods, ", "))
 				}
-				if len(o.Headers) != 0 {
+				if len(o.Headers) > 0 {
 					w.Header().Set("Access-Control-Allow-Headers", strings.Join(o.Headers, ", "))
 				}
 				w.Header().Set("Access-Control-Allow-Credentials", strconv.FormatBool(o.Credentials))
