@@ -1,7 +1,6 @@
 package oauth2
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"net/url"
@@ -34,7 +33,7 @@ func CallbackHandler(
 		}
 
 		code := r.FormValue("code")
-		tok, err := config.Exchange(context.Background(), code)
+		tok, err := config.Exchange(r.Context(), code)
 		if err != nil {
 			uri := config.AuthCodeURL(redirectURI)
 			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
