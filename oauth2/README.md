@@ -10,6 +10,7 @@ This allows you to use multiple IDPs at the same time and federate your sessions
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/cloudlena/adapters/oauth2"
+	jwt "github.com/golang-jwt/jwt/v5"
 	oa2 "golang.org/x/oauth2"
 	"golang.org/x/oauth2/facebook"
 )
@@ -31,19 +33,32 @@ func IndexHandler() http.Handler {
 
 // parseFacebookToken creates the private claims for an internal JWT from a Facebook OAuth2 token.
 func parseFacebookToken(tok *oauth2.Token) (jwt.MapClaims, error) {
+	var claims struct {
+		ID    string `json:"id"`
+		Email string `json:"email"`
+	}
+
 	meURL := "https://graph.facebook.com/me?fields=id,email,first_name,last_name&access_token=" + url.QueryEscape(tok.AccessToken)
 	res, err := http.Get(meURL)
 	if err != nil {
-		return jwt.MapClaims{}, err
+		return nil, err
 	}
 	defer res.Body.Close()
 
 	// Check if request was successful
 	if res.StatusCode != http.StatusOK {
-		return jwt.MapClaims{}, errors.New("invalid token")
+		return nil, errors.New("invalid token response")
 	}
 
-	return jwt.MapClaims{}, nil
+	err = json.NewDecoder(res.Body).Decode(&claims)
+	if err != nil {
+		return nil, err
+	}
+
+	return jwt.MapClaims{
+		"id":    claims.ID,
+		"email": claims.Email,
+	}, nil
 }
 
 func main() {
