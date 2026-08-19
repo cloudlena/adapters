@@ -3,7 +3,6 @@ package oauth2
 import (
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	oa2 "golang.org/x/oauth2"
@@ -11,40 +10,38 @@ import (
 
 // CallbackHandler creates a session token and returns it to the client.
 // It is designed to handle the OAuth2 callback endpoint.
+// If redirectURI isn't empty, the client is redirected there with the token
+// attached as an access_token query parameter, otherwise it is returned as JSON.
 func CallbackHandler(
 	config *oa2.Config,
 	sessionSecret string,
 	tokenTTL time.Duration,
+	redirectURI string,
 	parseTok ParseTokenFunc,
 ) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := r.ParseForm()
-		if err != nil {
-			status := http.StatusBadRequest
+		query := r.URL.Query()
+
+		// Only honor callbacks belonging to a login flow this client started.
+		if !hasStateNonce(r, query.Get("state")) {
+			status := http.StatusForbidden
 			http.Error(w, http.StatusText(status), status)
 			return
 		}
 
-		redirectURI, err := url.QueryUnescape(r.FormValue("state"))
+		tok, err := config.Exchange(r.Context(), query.Get("code"))
 		if err != nil {
+			log.Println("error exchanging code:", err)
 			status := http.StatusBadRequest
 			http.Error(w, http.StatusText(status), status)
-			return
-		}
-
-		code := r.FormValue("code")
-		tok, err := config.Exchange(r.Context(), code)
-		if err != nil {
-			uri := config.AuthCodeURL(redirectURI)
-			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 			return
 		}
 
 		claims, err := parseTok(tok)
 		if err != nil {
 			log.Println("error parsing token:", err)
-			uri := config.AuthCodeURL(redirectURI)
-			http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
+			status := http.StatusUnauthorized
+			http.Error(w, http.StatusText(status), status)
 			return
 		}
 

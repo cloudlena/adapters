@@ -2,7 +2,6 @@ package oauth2
 
 import (
 	"net/http"
-	"net/url"
 
 	oa2 "golang.org/x/oauth2"
 )
@@ -10,15 +9,7 @@ import (
 // LoginHandler triggers the respective login flow for the user.
 func LoginHandler(config *oa2.Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		err := r.ParseForm()
-		if err != nil {
-			status := http.StatusBadRequest
-			http.Error(w, http.StatusText(status), status)
-			return
-		}
-
-		redirectURI := url.QueryEscape(r.FormValue("redirect_uri"))
-		uri := config.AuthCodeURL(redirectURI)
+		uri := config.AuthCodeURL(newStateNonce(w, r))
 		http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
 	})
 }
