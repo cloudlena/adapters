@@ -49,18 +49,53 @@ func mockOAuthServer(t *testing.T) *httptest.Server {
 	}))
 }
 
+const (
+	stateCookieName = "oauth2_state"
+	testNonce       = "TESTNONCETESTNONCETESTNONC"
+)
+
+func testConfig(authURL, tokenURL string) *oa2.Config {
+	return &oa2.Config{
+		ClientID:     "client-id",
+		ClientSecret: "client-secret",
+		Endpoint: oa2.Endpoint{
+			AuthURL:  authURL,
+			TokenURL: tokenURL,
+		},
+	}
+}
+
+// callbackRequest builds a callback request as the identity provider would send
+// it, with cookieNonce the nonce the client holds and state the one sent back.
+func callbackRequest(code, cookieNonce, state string) *http.Request {
+	target := "/?code=" + url.QueryEscape(code) + "&state=" + url.QueryEscape(state)
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	if cookieNonce != "" {
+		req.AddCookie(&http.Cookie{Name: stateCookieName, Value: cookieNonce})
+	}
+
+	return req
+}
+
+// stateCookie returns the state cookie set by a handler.
+func stateCookie(t *testing.T, rr *httptest.ResponseRecorder) *http.Cookie {
+	t.Helper()
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == stateCookieName {
+			return c
+		}
+	}
+	t.Fatalf("expected a %s cookie, got %v", stateCookieName, rr.Result().Cookies())
+
+	return nil
+}
+
 // --- LoginHandler ---
 
 func TestLoginHandler_RedirectsToAuthURL(t *testing.T) {
-	config := &oa2.Config{
-		ClientID: "client-id",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  "https://provider.example/auth",
-			TokenURL: "https://provider.example/token",
-		},
-	}
+	config := testConfig("https://provider.example/auth", "https://provider.example/token")
 
-	req := httptest.NewRequest(http.MethodGet, "/?redirect_uri=https://app.example/callback", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	cloudoa2.LoginHandler(config).ServeHTTP(rr, req)
 
@@ -75,27 +110,34 @@ func TestLoginHandler_RedirectsToAuthURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse location: %v", err)
 	}
-	// LoginHandler calls url.QueryEscape on the redirect_uri before passing it as state.
-	if got := parsed.Query().Get("state"); got != url.QueryEscape("https://app.example/callback") {
-		t.Errorf("expected state to be encoded redirect URI, got %q", got)
+
+	// The state must be a nonce which is also handed to the client as a cookie.
+	state := parsed.Query().Get("state")
+	if state == "" {
+		t.Error("expected a state parameter")
+	}
+	cookie := stateCookie(t, rr)
+	if cookie.Value != state {
+		t.Errorf("expected state cookie to hold the state %q, got %q", state, cookie.Value)
+	}
+	if !cookie.HttpOnly {
+		t.Error("expected state cookie to be HTTP only")
+	}
+	if cookie.SameSite != http.SameSiteLaxMode {
+		t.Errorf("expected state cookie to be same site lax, got %v", cookie.SameSite)
 	}
 }
 
-func TestLoginHandler_NoRedirectURI(t *testing.T) {
-	config := &oa2.Config{
-		ClientID: "client-id",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  "https://provider.example/auth",
-			TokenURL: "https://provider.example/token",
-		},
-	}
+// GHSA-w7px-636p-4c44: nothing the client sends may end up in the state.
+func TestLoginHandler_IgnoresRequestParams(t *testing.T) {
+	config := testConfig("https://provider.example/auth", "https://provider.example/token")
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/?redirect_uri=https://attacker.example/capture", nil)
 	rr := httptest.NewRecorder()
 	cloudoa2.LoginHandler(config).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusTemporaryRedirect {
-		t.Errorf("expected %d, got %d", http.StatusTemporaryRedirect, rr.Code)
+	if loc := rr.Header().Get("Location"); strings.Contains(loc, "attacker.example") {
+		t.Errorf("expected the request parameter to be ignored, got %q", loc)
 	}
 }
 
@@ -105,23 +147,15 @@ func TestCallbackHandler_Success(t *testing.T) {
 	srv := mockOAuthServer(t)
 	defer srv.Close()
 
-	config := &oa2.Config{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  srv.URL + "/auth",
-			TokenURL: srv.URL + "/token",
-		},
-	}
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
 
 	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
 		return jwt.MapClaims{"sub": "user1"}, nil
 	}
 
-	state := url.QueryEscape("")
-	req := httptest.NewRequest(http.MethodGet, "/?code=valid-code&state="+state, nil)
+	req := callbackRequest("valid-code", testNonce, testNonce)
 	rr := httptest.NewRecorder()
-	cloudoa2.CallbackHandler(config, testSecret, time.Hour, parseTok).ServeHTTP(rr, req)
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d (body: %s)", rr.Code, rr.Body.String())
@@ -138,84 +172,135 @@ func TestCallbackHandler_Success(t *testing.T) {
 	}
 }
 
-func TestCallbackHandler_BadState(t *testing.T) {
+func TestCallbackHandler_LoginFlow(t *testing.T) {
 	srv := mockOAuthServer(t)
 	defer srv.Close()
 
-	config := &oa2.Config{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  srv.URL + "/auth",
-			TokenURL: srv.URL + "/token",
-		},
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
+
+	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
+		return jwt.MapClaims{"sub": "user1"}, nil
 	}
+
+	// Complete a flow with the state and cookie LoginHandler handed out.
+	loginRR := httptest.NewRecorder()
+	cloudoa2.LoginHandler(config).ServeHTTP(loginRR, httptest.NewRequest(http.MethodGet, "/", nil))
+	loc, err := url.Parse(loginRR.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse location: %v", err)
+	}
+
+	req := callbackRequest("valid-code", "", loc.Query().Get("state"))
+	req.AddCookie(stateCookie(t, loginRR))
+	rr := httptest.NewRecorder()
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 for a callback of a started login flow, got %d (body: %s)", rr.Code, rr.Body.String())
+	}
+}
+
+func TestCallbackHandler_MissingStateCookie(t *testing.T) {
+	srv := mockOAuthServer(t)
+	defer srv.Close()
+
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
 
 	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
 		return nil, errors.New("should not be called")
 	}
 
-	// %25zz decodes to %zz in form values, which is an invalid percent-encoding for QueryUnescape.
-	req := httptest.NewRequest(http.MethodGet, "/?code=x&state=%25zz", nil)
+	req := callbackRequest("valid-code", "", testNonce)
 	rr := httptest.NewRecorder()
-	cloudoa2.CallbackHandler(config, testSecret, time.Hour, parseTok).ServeHTTP(rr, req)
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected %d for malformed state, got %d", http.StatusBadRequest, rr.Code)
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected %d for a callback without state cookie, got %d", http.StatusForbidden, rr.Code)
 	}
 }
 
-func TestCallbackHandler_ExchangeError_Redirects(t *testing.T) {
+func TestCallbackHandler_WrongState(t *testing.T) {
+	srv := mockOAuthServer(t)
+	defer srv.Close()
+
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
+
+	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
+		return nil, errors.New("should not be called")
+	}
+
+	req := callbackRequest("valid-code", testNonce, "some-other-nonce")
+	rr := httptest.NewRecorder()
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected %d for a state which doesn't match the cookie, got %d", http.StatusForbidden, rr.Code)
+	}
+}
+
+// GHSA-w7px-636p-4c44: a state carrying a redirect URI must not send the token there.
+func TestCallbackHandler_AttackerControlledState(t *testing.T) {
+	srv := mockOAuthServer(t)
+	defer srv.Close()
+
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
+
+	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
+		return nil, errors.New("should not be called")
+	}
+
+	req := callbackRequest("valid-code", testNonce, "https://attacker.example/capture")
+	rr := httptest.NewRecorder()
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected %d, got %d", http.StatusForbidden, rr.Code)
+	}
+	if loc := rr.Header().Get("Location"); loc != "" {
+		t.Errorf("expected no redirect, got %q", loc)
+	}
+	if body := rr.Body.String(); strings.Contains(body, "access_token") {
+		t.Errorf("expected no token in the response, got %q", body)
+	}
+}
+
+func TestCallbackHandler_ExchangeError(t *testing.T) {
 	failSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 	}))
 	defer failSrv.Close()
 
-	config := &oa2.Config{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  failSrv.URL + "/auth",
-			TokenURL: failSrv.URL + "/token",
-		},
-	}
+	config := testConfig(failSrv.URL+"/auth", failSrv.URL+"/token")
 
 	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
 		return nil, errors.New("should not be called")
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/?code=bad-code&state=", nil)
+	req := callbackRequest("bad-code", testNonce, testNonce)
 	rr := httptest.NewRecorder()
-	cloudoa2.CallbackHandler(config, testSecret, time.Hour, parseTok).ServeHTTP(rr, req)
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusTemporaryRedirect {
-		t.Errorf("expected %d on exchange error, got %d", http.StatusTemporaryRedirect, rr.Code)
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected %d on exchange error, got %d", http.StatusBadRequest, rr.Code)
 	}
 }
 
-func TestCallbackHandler_ParseTokenError_Redirects(t *testing.T) {
+func TestCallbackHandler_ParseTokenError(t *testing.T) {
 	srv := mockOAuthServer(t)
 	defer srv.Close()
 
-	config := &oa2.Config{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  srv.URL + "/auth",
-			TokenURL: srv.URL + "/token",
-		},
-	}
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
 
 	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
 		return nil, errors.New("invalid token")
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/?code=valid-code&state=", nil)
+	req := callbackRequest("valid-code", testNonce, testNonce)
 	rr := httptest.NewRecorder()
-	cloudoa2.CallbackHandler(config, testSecret, time.Hour, parseTok).ServeHTTP(rr, req)
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, "", parseTok).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusTemporaryRedirect {
-		t.Errorf("expected %d on parse error, got %d", http.StatusTemporaryRedirect, rr.Code)
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected %d on parse error, got %d", http.StatusUnauthorized, rr.Code)
 	}
 }
 
@@ -223,33 +308,32 @@ func TestCallbackHandler_WithRedirectURI(t *testing.T) {
 	srv := mockOAuthServer(t)
 	defer srv.Close()
 
-	config := &oa2.Config{
-		ClientID:     "client-id",
-		ClientSecret: "client-secret",
-		Endpoint: oa2.Endpoint{
-			AuthURL:  srv.URL + "/auth",
-			TokenURL: srv.URL + "/token",
-		},
-	}
+	config := testConfig(srv.URL+"/auth", srv.URL+"/token")
 
 	parseTok := func(tok *oa2.Token) (jwt.MapClaims, error) {
 		return jwt.MapClaims{"sub": "user1"}, nil
 	}
 
-	state := url.QueryEscape("https://app.example/dashboard")
-	req := httptest.NewRequest(http.MethodGet, "/?code=valid-code&state="+state, nil)
+	const redirectURI = "https://app.example/dashboard?foo=bar"
+	req := callbackRequest("valid-code", testNonce, testNonce)
 	rr := httptest.NewRecorder()
-	cloudoa2.CallbackHandler(config, testSecret, time.Hour, parseTok).ServeHTTP(rr, req)
+	cloudoa2.CallbackHandler(config, testSecret, time.Hour, redirectURI, parseTok).ServeHTTP(rr, req)
 
 	if rr.Code != http.StatusTemporaryRedirect {
-		t.Errorf("expected %d with redirect URI, got %d", http.StatusTemporaryRedirect, rr.Code)
+		t.Errorf("expected %d with redirect URI, got %d (body: %s)", http.StatusTemporaryRedirect, rr.Code, rr.Body.String())
 	}
-	loc := rr.Header().Get("Location")
-	if !strings.HasPrefix(loc, "https://app.example/dashboard") {
-		t.Errorf("expected redirect to dashboard, got %q", loc)
+	loc, err := url.Parse(rr.Header().Get("Location"))
+	if err != nil {
+		t.Fatalf("parse location: %v", err)
 	}
-	if !strings.Contains(loc, "access_token=") {
+	if loc.Scheme != "https" || loc.Host != "app.example" || loc.Path != "/dashboard" {
+		t.Errorf("expected redirect to the dashboard, got %q", loc)
+	}
+	if loc.Query().Get("access_token") == "" {
 		t.Errorf("expected access_token in redirect URL, got %q", loc)
+	}
+	if got := loc.Query().Get("foo"); got != "bar" {
+		t.Errorf("expected existing query parameters to be kept, got %q", got)
 	}
 }
 

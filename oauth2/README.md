@@ -32,7 +32,7 @@ func IndexHandler() http.Handler {
 }
 
 // parseFacebookToken creates the private claims for an internal JWT from a Facebook OAuth2 token.
-func parseFacebookToken(tok *oauth2.Token) (jwt.MapClaims, error) {
+func parseFacebookToken(tok *oa2.Token) (jwt.MapClaims, error) {
 	var claims struct {
 		ID    string `json:"id"`
 		Email string `json:"email"`
@@ -71,11 +71,36 @@ func main() {
 		Endpoint:     facebook.Endpoint,
 		Scopes:       []string{"email", "public_profile"},
 	}
+	// Where to send the client after a successful login. If empty, the session
+	// token is returned as JSON instead.
+	redirectURI := "http://localhost:8080/dashboard"
+
 	http.Handle("/auth/login/facebook", oauth2.LoginHandler(facebookConfig))
-	http.Handle("/auth/callback/facebook", oauth2.CallbackHandler(facebookConfig, sessionSecret, 24*time.Hour, parseFacebookToken))
+	http.Handle("/auth/callback/facebook", oauth2.CallbackHandler(facebookConfig, sessionSecret, 24*time.Hour, redirectURI, parseFacebookToken))
 
 	checkTokenMiddleware := oauth2.CheckTokenHandler(sessionSecret, "token")
 	http.Handle("/", checkTokenMiddleware(IndexHandler()))
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 ```
+
+## Login flow
+
+`LoginHandler` sends the client to the identity provider and `CallbackHandler` turns the provider's callback into a session JWT.
+
+If `redirectURI` is empty, the session JWT is returned as a JSON body:
+
+```json
+{ "tokenType": "Bearer", "accessToken": "...", "expiresIn": 86400 }
+```
+
+Otherwise the client is redirected to `redirectURI` with the session JWT appended as an `access_token` query parameter.
+
+## Security
+
+The session JWT is a bearer credential, so whoever receives it is logged in as the user:
+
+- **The redirect target is configured by the application, never by the client.** Nothing a client sends can influence where the token is sent.
+- **Callbacks are bound to their login request.** `LoginHandler` uses an unguessable nonce as the OAuth 2 `state` parameter and hands the same nonce to the client in an `HttpOnly`, `SameSite=Lax` cookie. `CallbackHandler` only accepts a callback whose `state` matches that cookie and rejects anything else with `403 Forbidden`. The login and callback endpoints therefore have to be served from the same site.
+
+Keep in mind that a token in a redirect URI also ends up in the browser history, in `Referer` headers and in any proxy or access log along the way, so prefer having it returned as JSON.

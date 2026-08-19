@@ -2,9 +2,9 @@ package oauth2
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -20,7 +20,8 @@ type TokenResponse struct {
 	ExpiresIn   int    `json:"expiresIn"`
 }
 
-// issueSession creates a JWT and returns it to the client.
+// issueSession creates a JWT and returns it to the client, either as JSON or by
+// redirecting to redirectURI with the token attached.
 func issueSession(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -44,23 +45,38 @@ func issueSession(
 		return
 	}
 
+	if redirectURI != "" {
+		uri, err := url.Parse(redirectURI)
+		if err != nil {
+			log.Println("error parsing redirect URI:", err)
+
+			status := http.StatusInternalServerError
+			http.Error(w, http.StatusText(status), status)
+
+			return
+		}
+
+		query := uri.Query()
+		query.Set("access_token", signedTok)
+		uri.RawQuery = query.Encode()
+
+		http.Redirect(w, r, uri.String(), http.StatusTemporaryRedirect)
+
+		return
+	}
+
 	resp := TokenResponse{
 		TokenType:   "Bearer",
 		AccessToken: signedTok,
 		ExpiresIn:   int(tokenTTL.Seconds()),
 	}
 
-	if redirectURI != "" {
-		uri := fmt.Sprintf("%s?access_token=%s", redirectURI, signedTok)
-		http.Redirect(w, r, uri, http.StatusTemporaryRedirect)
-	} else {
-		w.Header().Set("Content-Type", "application/json; encoding=utf-8")
+	w.Header().Set("Content-Type", "application/json; encoding=utf-8")
 
-		err = json.NewEncoder(w).Encode(resp)
-		if err != nil {
-			log.Println("error encoding response JSON:", err)
-			status := http.StatusInternalServerError
-			http.Error(w, http.StatusText(status), status)
-		}
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		log.Println("error encoding response JSON:", err)
+		status := http.StatusInternalServerError
+		http.Error(w, http.StatusText(status), status)
 	}
 }
